@@ -1,10 +1,10 @@
-"""import streamlit as st
+import streamlit as st
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 from atlas_embed import AtlasEmbed
 import duckdb
 
-def load_sentence_bert_model(model_name=\"all-MiniLM-L6-v2\"):
+def load_sentence_bert_model(model_name="all-MiniLM-L6-v2"):
     """Loads a Sentence-BERT model."""
     model = SentenceTransformer(model_name)
     return model
@@ -29,16 +29,16 @@ def load_data_from_duckdb(df, predicate):
         pd.DataFrame: Filtered DataFrame.
     """
     if predicate is None:
-        raise TypeError(\"Predicate cannot be None\")
+        raise TypeError("Predicate cannot be None")
 
     try:
         con = duckdb.connect(database=':memory:', read_only=False)
         con.register('df', df)
-        selection = con.execute(f\"SELECT * FROM df WHERE {predicate}\"").fetchdf()
+        selection = con.execute(f"SELECT * FROM df WHERE {predicate}").fetchdf()
         con.close()
         return selection
     except Exception as e:
-        raise NameError(f\"Error executing predicate: {e}\")
+        raise NameError(f"Error executing predicate: {e}")
 
 
 def semantic_similarity_search(df, query_embedding, n):
@@ -62,11 +62,11 @@ def compute_cosine_similarity(embedding1, embedding2):
     return similarity
 
 def run_embedding_visualization():
-    st.header(\"Embedding Visualization\")
-    st.markdown(\"\"\"In this section, visualize the document embeddings in an interactive atlas and perform semantic searches.\"\"\")
+    st.header("Embedding Visualization")
+    st.markdown("In this section, visualize the document embeddings in an interactive atlas and perform semantic searches.")
 
     if 'processed_df' not in st.session_state:
-        st.warning(\"Please upload and process documents in the Document Processing section first.\")
+        st.warning("Please upload and process documents in the Document Processing section first.")
         return
 
     df = st.session_state['processed_df'].copy()
@@ -83,31 +83,29 @@ def run_embedding_visualization():
         st.session_state['processed_df'] = df # Update the session state
 
     # Interactive Visualization
-    st.subheader(\"Interactive Embedding Atlas\")
+    st.subheader("Interactive Embedding Atlas")
     value = embedding_atlas(df, text='text', x='projection_x', y='projection_y', neighbors='neighbors', show_table=True)
 
-    predicate = value.get(\"predicate\")
+    predicate = value.get("predicate")
     if predicate is not None:
         try:
             selection = load_data_from_duckdb(df, predicate)
-            st.subheader(\"Selected Data\")
+            st.subheader("Selected Data")
             st.dataframe(selection)
         except NameError as e:
-            st.error(f\"Error loading data from DuckDB: {e}\")
+            st.error(f"Error loading data from DuckDB: {e}")
 
     # Semantic Search
-    st.subheader(\"Semantic Search\")
-    search_query = st.text_input(\"Enter your search query:\")
-    num_results = st.number_input(\"Number of top matches to return:\", min_value=1, value=5)
+    st.subheader("Semantic Search")
+    search_query = st.text_input("Enter your search query:")
+    num_results = st.number_input("Number of top matches to return:", min_value=1, value=5)
 
     if search_query:
         model = load_sentence_bert_model()
         query_embedding = model.encode(search_query)
         similarities = semantic_similarity_search(df, query_embedding, num_results)
 
-        st.subheader(\"Search Results\")
+        st.subheader("Search Results")
         search_results_df = pd.DataFrame(similarities, columns=['document_id', 'similarity_score'])
         st.dataframe(search_results_df)
 
-
-"""

@@ -1,4 +1,4 @@
-"""import streamlit as st
+import streamlit as st
 
 def calculate_context_relevancy(query, context):
     """Calculates the Context Relevancy metric."""
@@ -76,12 +76,12 @@ def calculate_answer_relevancy(answer, query):
 
 
 def run_evaluation_metrics():
-    st.header(\"Evaluation Metrics\")
-    st.markdown(\"\"\"In this section, evaluate the quality of search results using embedding-based metrics.\"\"\")
+    st.header("Evaluation Metrics")
+    st.markdown("In this section, evaluate the quality of search results using embedding-based metrics.")
 
-    query = st.text_area(\"Query:\", value=\"\")
-    context = st.text_area(\"Context:\", value=\"\")
-    answer = st.text_area(\"Answer:\", value=\"\")
+    query = st.text_area("Query:", value="")
+    context = st.text_area("Context:", value="")
+    answer = st.text_area("Answer:", value="")
 
     if query and context and answer:
         context_relevancy = calculate_context_relevancy(query, context)
@@ -89,11 +89,10 @@ def run_evaluation_metrics():
         completeness = calculate_completeness(context, answer)
         answer_relevancy = calculate_answer_relevancy(answer, query)
 
-        st.subheader(\"Metrics\")
-        st.write(f\"Context Relevancy: {context_relevancy:.2f}\")
-        st.write(f\"Groundedness: {groundedness:.2f}\")
-        st.write(f\"Completeness: {completeness:.2f}\")
-        st.write(f\"Answer Relevancy: {answer_relevancy:.2f}\")
+        st.subheader("Metrics")
+        st.write(f"Context Relevancy: {context_relevancy:.2f}")
+        st.write(f"Groundedness: {groundedness:.2f}")
+        st.write(f"Completeness: {completeness:.2f}")
+        st.write(f"Answer Relevancy: {answer_relevancy:.2f}")
 
 
-"""

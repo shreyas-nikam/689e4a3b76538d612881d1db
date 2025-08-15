@@ -1,10 +1,10 @@
-"""import streamlit as st
+import streamlit as st
 import pandas as pd
 from pypdf import PdfReader
 
 def extract_text_from_pdfs(paths):
     """Extracts text from PDF documents and stores them in a DataFrame."""
-    data = []
+    data = []   
     for path in paths:
         try:
             reader = PdfReader(path)
@@ -20,14 +20,14 @@ def extract_text_from_pdfs(paths):
 def clean_text(text):
     """Cleans text by lowercasing and removing extra spaces."""
     text = text.lower()
-    text = \" \".join(text.split())
+    text = " ".join(text.split())
     return text
 
 def run_document_processing():
-    st.header(\"Document Processing\")
-    st.markdown(\"\"\"In this section, upload financial documents (PDFs) and preprocess them for analysis.\"\"\")
+    st.header("Document Processing")
+    st.markdown("In this section, upload financial documents (PDFs) and preprocess them for analysis.")
 
-    uploaded_files = st.file_uploader(\"Upload Financial Documents (PDFs)\", type=[\"pdf\"], accept_multiple_files=True)
+    uploaded_files = st.file_uploader("Upload Financial Documents (PDFs)", type=["pdf"], accept_multiple_files=True)
 
     if uploaded_files:
         st.session_state['uploaded_files'] = uploaded_files
@@ -41,12 +41,9 @@ def run_document_processing():
         df = extract_text_from_pdfs(uploaded_files)
         df['text'] = df['text'].apply(clean_text)
 
-        st.subheader(\"Processed Documents\")
+        st.subheader("Processed Documents")
         st.dataframe(df)
 
 
         if 'processed_df' not in st.session_state:
             st.session_state['processed_df'] = df
-
-
-"""
