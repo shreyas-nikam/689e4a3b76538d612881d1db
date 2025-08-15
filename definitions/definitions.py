@@ -1,40 +1,35 @@
 import pypdf
-
 def extract_text_from_pdf(file_path):
     """Extracts text content from a PDF file."""
+
+    if file_path is None:
+        raise TypeError("File path cannot be None")
+
     try:
-        reader = pypdf.PdfReader(file_path)
-        text = ""
-        for page in reader.pages:
-            text += page
-        return text
+        with open(file_path, 'rb') as file:
+            reader = pypdf.PdfReader(file)
+            text = ""
+            for page in reader.pages:
+                text += page.extract_text()
+            return text
     except FileNotFoundError:
-        return ""
-    except Exception:
-        return ""
+        raise FileNotFoundError(f"File not found: {file_path}")
+    except Exception as e:
+        raise Exception(f"Error extracting text from PDF: {e}")
 
 def clean_text(text):
-                """Cleans text by lowercasing and removing extra whitespace."""
+                """Cleans raw text."""
                 text = text.lower()
                 text = " ".join(text.split())
                 return text
 
 import numpy as np
+from sentence_transformers import SentenceTransformer
 
 def generate_embeddings(texts, model):
-    """Generates text embeddings using a Sentence-BERT model.
-
-    Args:
-        texts (list): List of text strings.
-        model: Sentence-BERT model.
-
-    Returns:
-        numpy.ndarray: Embeddings for each input text.
-    """
-
-    if not texts:
-        return np.empty((0, 3))  # Return an empty array if input is empty
-
+    """Generates text embeddings."""
+    if not isinstance(texts, list):
+        raise TypeError("Input must be a list of strings.")
     embeddings = model.encode(texts)
     return embeddings
 
@@ -43,217 +38,223 @@ from sklearn.cluster import KMeans
 
 def apply_kmeans_clustering(embeddings, n_clusters):
     """Applies K-Means clustering to embeddings.
-
     Args:
-        embeddings (numpy.ndarray): Embeddings to cluster.
-        n_clusters (int): Number of clusters to form.
-
+        embeddings: 2D embeddings (numpy array).
+        n_clusters: Number of clusters.
     Returns:
-        numpy.ndarray: Cluster labels for each embedding.
+        Cluster labels.
+    Raises:
+        ValueError: If n_clusters is invalid or embeddings is empty.
     """
+    if not isinstance(embeddings, np.ndarray):
+        raise AttributeError("Embeddings must be a numpy array.")
+
     if embeddings.size == 0:
         raise ValueError("Embeddings cannot be empty.")
-    if n_clusters > embeddings.shape[0]:
-        raise ValueError("n_clusters cannot be greater than the number of samples.")
+    if n_clusters <= 0:
+        raise ValueError("Number of clusters must be greater than 0.")
 
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init = 'auto')  # Explicitly set n_init
-    kmeans.fit(embeddings)
-    return kmeans.labels_
+    kmeans = KMeans(n_clusters=n_clusters, random_state=0, n_init = 'auto')  # Explicitly set n_init
+    labels = kmeans.fit_predict(embeddings)
+    return labels
 
 import numpy as np
 
-def compute_cosine_similarity(vector_a, vector_b):
-    """Computes the cosine similarity between two vectors."""
-    if vector_a.shape != vector_b.shape:
-        raise ValueError("Vectors must have the same dimensions")
-
-    norm_a = np.linalg.norm(vector_a)
-    norm_b = np.linalg.norm(vector_b)
-
-    if norm_a == 0 or norm_b == 0:
-        raise ZeroDivisionError("Vectors must have non-zero magnitude")
-
-    return np.dot(vector_a, vector_b) / (norm_a * norm_b)
+def compute_cosine_similarity(embedding1, embedding2):
+    """Computes the cosine similarity between two embedding vectors."""
+    dot_product = np.dot(embedding1, embedding2)
+    norm_embedding1 = np.linalg.norm(embedding1)
+    norm_embedding2 = np.linalg.norm(embedding2)
+    return dot_product / (norm_embedding1 * norm_embedding2)
 
 import pandas as pd
+import numpy as np
 from sentence_transformers import util
 
 def find_similar_documents(df, query, model, N):
-    """Finds the N most similar documents to a given query."""
-
-    if N < 0:
-        raise ValueError("N must be a non-negative integer.")
-
+    """Finds and ranks documents based on their cosine similarity to a given query embedding.
+    Args:
+        df: DataFrame with 'embeddings' column.
+        query: Query string or document ID.
+        model: SentenceTransformer model.
+        N: Number of top similar documents to return.
+    Returns:
+        DataFrame of the top N similar documents and their scores.
+    """
     if df.empty:
         return pd.DataFrame()
 
-    try:
-        query = int(query)
-        query_embedding = model.encode(df[df['document_id'] == query]['text'].iloc[0])
-    except ValueError:
+    if isinstance(query, int):
+        if query not in df['document_id'].values:
+            raise KeyError("Query ID not found in dataframe")
+        query_embedding = df[df['document_id'] == query]['embeddings'].iloc[0]
+    else:
         query_embedding = model.encode(query)
-    except:
-        return pd.DataFrame()
 
-    document_embeddings = model.encode(df['text'].tolist())
+    corpus_embeddings = np.stack(df['embeddings'].to_numpy())
+    cos_scores = util.cos_sim(query_embedding, corpus_embeddings)[0]
     
-    similarities = util.cos_sim(query_embedding, document_embeddings)[0].tolist()
+    df['similarity_score'] = cos_scores.cpu().tolist()
 
-    results = pd.DataFrame({'document_id': df['document_id'], 'similarity': similarities})
-    results = results.sort_values(by='similarity', ascending=False)
-    results = results.head(N)
+    df_sorted = df.sort_values(by='similarity_score', ascending=False)
+    result_df = df_sorted.head(N)
 
-    return results
-
-def calculate_context_relevancy(query, context, model):
-                """Calculates context relevancy score."""
-                query_embedding = model.encode(query)
-                context_embedding = model.encode(context)
-                similarity_score = sentence_transformers.util.pytorch_cos_sim(query_embedding, context_embedding)[0][0].item()
-                return similarity_score
+    return result_df[['document_id', 'text', 'similarity_score']].reset_index(drop=True)
 
 from sentence_transformers import util
 
+def calculate_context_relevancy(query, context, model):
+    """Calculates context relevancy score between query and context."""
+    if not query or not context:
+        return 0.0
+
+    query_embedding = model.encode(query, convert_to_tensor=True)
+    context_embedding = model.encode(context, convert_to_tensor=True)
+    
+    cosine_similarity = util.pytorch_cos_sim(query_embedding, context_embedding).item()
+    return cosine_similarity
+
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+import nltk
+nltk.download('punkt')
+from nltk.tokenize import sent_tokenize
+
 def calculate_groundedness(answer, context, model):
-    """Calculates the groundedness score between an answer and a context."""
+    """Calculates the groundedness score between an answer and context."""
     if not answer or not context:
         return 0.0
 
-    try:
-        embedding_answer = model.encode(answer, convert_to_tensor=True)
-        embedding_context = model.encode(context, convert_to_tensor=True)
-        
-        cosine_scores = util.pytorch_cos_sim(embedding_answer, embedding_context)
-        
-        return cosine_scores[0][0].item()
-    except Exception as e:
-        print(f"Error calculating groundedness: {e}")
+    answer_sentences = sent_tokenize(answer)
+    context_sentences = sent_tokenize(context)
+
+    answer_embeddings = model.encode(answer_sentences)
+    context_embeddings = model.encode(context_sentences)
+
+    similarity_matrix = cosine_similarity(answer_embeddings, context_embeddings)
+
+    groundedness_scores = np.max(similarity_matrix, axis=1)
+
+    return np.mean(groundedness_scores)
+
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+import nltk
+nltk.download('punkt')
+
+
+def calculate_completeness(context, answer, model):
+    """Calculates the completeness score between a context and a generated answer."""
+    if not context or not answer:
         return 0.0
 
-import numpy as np
-            from sentence_transformers import util
+    context_sentences = nltk.sent_tokenize(context)
+    answer_sentences = nltk.sent_tokenize(answer)
 
-            def calculate_completeness(context, answer, model):
-                """Calculates the completeness score between a context and an answer.
-                Args:
-                    context (str): The context string.
-                    answer (str): The generated answer string.
-                    model: The Sentence-BERT model.
-                Returns:
-                    float: The completeness score.
-                """
-                if not context and not answer:
-                    return 1.0
-                if not context or not answer:
-                    return 0.0
+    if not context_sentences or not answer_sentences:
+        return 0.0
 
-                try:
-                    context_embedding = model.encode(context)
-                    answer_embedding = model.encode(answer)
-                    similarity = util.cos_sim(context_embedding, answer_embedding).item()
-                    return similarity
-                except Exception as e:
-                    print(f"Error calculating completeness: {e}")
-                    return 0.0
+    context_embeddings = model.encode(context_sentences)
+    answer_embeddings = model.encode(answer_sentences)
 
-import numpy as np
-from sentence_transformers import util
+    similarity_scores = []
+    for answer_embedding in answer_embeddings:
+        max_similarity = 0
+        for context_embedding in context_embeddings:
+            similarity = cosine_similarity([answer_embedding], [context_embedding])[0][0]
+            max_similarity = max(max_similarity, similarity)
+        similarity_scores.append(max_similarity)
+
+    if not similarity_scores:
+        return 0.0
+
+    return sum(similarity_scores) / len(similarity_scores)
+
+from sentence_transformers import SentenceTransformer, util
 
 def calculate_answer_relevancy(query, answer, model):
-    """Calculates the answer relevancy score between a query and an answer."""
-    if not query or not answer:
-        return None
+    """Calculates answer relevancy score based on sentence-level cosine similarity."""
 
-    query_embedding = model.encode(query)
-    answer_embedding = model.encode(answer)
+    query_sentences = [query]
+    answer_sentences = [s for s in answer.split('. ') if s]
 
-    similarity_score = util.pytorch_cos_sim(query_embedding, answer_embedding).item()
+    if not answer_sentences:
+        return 0.0
 
-    return float(similarity_score)
+    query_embeddings = model.encode(query_sentences)
+    answer_embeddings = [model.encode(s) for s in answer_sentences]
 
-import re
+    similarities = []
+    for a_emb in answer_embeddings:
+        max_sim = max([util.cos_sim(a_emb, query_embeddings).item()])
+        similarities.append(max_sim)
 
-def split_text_into_sentences(text):
-    """Splits a text into sentences."""
-    if not text:
-        return []
-    sentences = re.split(r"(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?|!)\s", text)
-    return sentences
+    return sum(similarities) / len(similarities)
 
 import pandas as pd
 import os
-from pdfminer.high_level import extract_text
 
-def load_documents_into_dataframe(file_paths):
-    """Loads documents into a pandas DataFrame from a list of file paths."""
+def extract_text_from_pdf(file_path):
+    """Placeholder for PDF extraction."""
+    raise NotImplementedError("PDF extraction not implemented. Please use a library like PyPDF2 or pdfminer.")
 
+def load_documents_to_dataframe(file_paths):
+    """Loads documents into a pandas DataFrame."""
     data = []
     for file_path in file_paths:
         try:
-            if not os.path.exists(file_path):
-                raise FileNotFoundError(f"File not found: {file_path}")
-            text = extract_text(file_path)
+            text = extract_text_from_pdf(file_path)
             title = os.path.basename(file_path)
-            document_id = os.path.splitext(title)[0]
-            data.append({"document_id": document_id, "title": title, "text": text})
+            data.append({'document_id': file_path, 'title': title, 'text': text})
         except FileNotFoundError:
             raise
-        except Exception as e:
-            raise Exception(f"Error processing {file_path}: {e}")
+        except NotImplementedError:
+             # Handle the NotImplementedError, e.g., by logging or skipping the file
+            print(f"Warning: PDF extraction not implemented. Skipping {file_path}")
+            
+    df = pd.DataFrame(data)
+    return df
 
-    return pd.DataFrame(data)
+def split_text_into_sentences(text):
+                """Splits a text into sentences."""
+                import re
+                if not text:
+                    return []
+                sentences = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?|!)\s', text)
+                return sentences
 
 import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.manifold import TSNE
 import numpy as np
 
 def compute_text_projection(df, text, x, y, neighbors):
-    """Computes the text projection using UMAP for dimensionality reduction using Embedding Atlas.
-    Arguments: 
-        df (pandas.DataFrame): The DataFrame containing the text data.
-        text (str): The column name containing the text.
-        x (str): The column name for the x-coordinate of the projection.
-        y (str): The column name for the y-coordinate of the projection.
-        neighbors (str): The column name for storing neighbor information.
-    Output: 
-        None: Modifies the DataFrame in place by adding the projection columns.
-    """
+    """Computes text projection to 2D coordinates and neighbor information."""
     if df.empty:
-        return
+        raise Exception("DataFrame cannot be empty.")
 
     if text not in df.columns:
-        if text is not None:
-            raise KeyError(f"Column '{text}' not found in DataFrame.")
-        else:
-            return
-            
+        raise KeyError(f"Column '{text}' not found in DataFrame.")
+
     if not all(isinstance(item, str) for item in df[text]):
-        raise TypeError("The 'text' column must contain strings.")
+        raise TypeError("All items in the text column must be strings.")
 
-    if x not in df.columns and x is not None:
-         raise KeyError(f"Column '{x}' not found in DataFrame.")
-    if y not in df.columns and y is not None:
-         raise KeyError(f"Column '{y}' not found in DataFrame.")
-    if neighbors not in df.columns and neighbors is not None:
-         raise KeyError(f"Column '{neighbors}' not found in DataFrame.")
-    
-    return
+    if df[text].isnull().any():
+        raise TypeError("Text column cannot contain NaN values.")
 
-def prepare_dataframe_for_embedding_atlas(df):
-    """Prepares data frame for Embedding Atlas.
+    vectorizer = TfidfVectorizer()
+    tfidf_matrix = vectorizer.fit_transform(df[text])
 
-    Args:
-        df (pandas.DataFrame): DataFrame containing data.
-    """
+    tsne = TSNE(n_components=2, random_state=42)
+    tsne_results = tsne.fit_transform(tfidf_matrix)
 
-    if df.empty:
-        return
+    df[x] = tsne_results[:, 0]
+    df[y] = tsne_results[:, 1]
 
-    if 'text' not in df.columns:
-        df.drop(df.index, inplace=True)
-        return
+    similarity_matrix = cosine_similarity(tfidf_matrix)
+    neighbor_indices = np.argsort(similarity_matrix, axis=1)[:, -6:-1]  # Exclude itself
 
-    if 'projection_x' in df.columns and 'projection_y' in df.columns:
-        df.drop(df.index, inplace=True)
-        return
-    
-    df.drop(df.index, inplace=True)
+    df[neighbors] = neighbor_indices.tolist()
+
+    return df
