@@ -19,7 +19,16 @@ This Streamlit application aims to provide an interactive tool for exploring sem
 
 The application will consist of the following sections:
 
-1.  **File Upload:**  Allows the user to upload financial documents (PDFs). A default sample PDF document will be provided for demonstration purposes.
+1.  **File Upload:**  Allows the user to upload financial documents (PDFs). A default sample PDF document will be provided for demonstration purposes. Get the sample documents from these links:
+# Apple — 2023 Form 10-K (PDF)
+https://s2.q4cdn.com/470004039/files/doc_earnings/2023/q4/filing/_10-K-Q4-2023-As-Filed.pdf
+# Tesla — 2023 Form 10-K (PDF)
+https://ir.tesla.com/_flysystem/s3/sec/000162828024002390/tsla-20231231-gen.pdf
+# JPMorgan Chase — 2023 Annual Report (PDF)
+https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/annualreport-2023.pdf
+# Amazon — 2023 Annual Report / 10-K (PDF)
+https://s2.q4cdn.com/299287126/files/doc_financials/2024/ar/Amazon-com-Inc-2023-Annual-Report.pdf
+
 2.  **Data Processing:**  Displays the uploaded documents in a table format.
 3.  **Embedding Visualization:** Show an interactive 2D semantic map of the documents, allowing users to explore relationships and clusters.
 4.  **Semantic Search:**  Enables users to enter a search query and find similar documents.
@@ -460,3 +469,43 @@ def calculate_answer_relevancy(answer, query):
 **Technical Implementation:**
 [As detailed in the notebook markdown.]
 ```
+
+
+Refer to the following for the atlas embedding:
+Installation
+
+pip install embedding-atlas
+Usage
+
+from embedding_atlas.streamlit import embedding_atlas
+from embedding_atlas.projection import compute_text_projection
+
+# Compute text embedding and projection of the embedding
+compute_text_projection(df, text="description",
+    x="projection_x", y="projection_y", neighbors="neighbors"
+)
+
+# Create an Embedding Atlas component for a given data frame
+value = embedding_atlas(
+    df, text="description",
+    x="projection_x", y="projection_y", neighbors="neighbors",
+    show_table=True
+)
+The returned value is a dict with a predicate string. The predicate is a SQL expression for the current selection in the component. You may use DuckDB to query the data frame with the predicate:
+
+
+import duckdb
+
+predicate = value.get("predicate")
+if predicate is not None:
+    # Query the data frame with the SQL predicate
+    selection = duckdb.query_df(
+        df, "dataframe", "SELECT * FROM dataframe WHERE " + predicate
+    )
+    # Show the selection
+    st.dataframe(selection)
+Note that it's also possible to use the component without projection:
+
+
+value = embedding_atlas(df)
+Without x and y the widget will fall back to a table and charts only mode.
