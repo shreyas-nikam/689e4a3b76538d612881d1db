@@ -1,50 +1,28 @@
 import pytest
-from definition_8b8dfb4044c74796b206ac085bf037be import generate_embeddings
-import numpy as np
+from definition_15ce9f59fbe8459bb05317bfda3c68a1 import load_sentence_bert_model
 from sentence_transformers import SentenceTransformer
 
-@pytest.fixture
-def mock_model():
-    # A simple mock model for testing purposes.  In real use-cases a pretrained model like 'all-MiniLM-L6-v2' would be employed.
-    class MockModel:
-        def encode(self, texts):
-            if isinstance(texts, str):
-                return np.array([len(texts)])  # dummy embedding
-            return np.array([len(text) for text in texts])
-    return MockModel()
+def test_load_sentence_bert_model_valid_model():
+    """Test loading a valid Sentence-BERT model."""
+    model = load_sentence_bert_model("all-MiniLM-L6-v2")
+    assert isinstance(model, SentenceTransformer)
 
-def test_generate_embeddings_empty_list(mock_model):
-    model = mock_model
-    result = generate_embeddings([], model)
-    assert isinstance(result, np.ndarray)
+def test_load_sentence_bert_model_invalid_model():
+    """Test loading an invalid/non-existent Sentence-BERT model."""
+    with pytest.raises(OSError):
+        load_sentence_bert_model("invalid-model-name")
 
-def test_generate_embeddings_single_text(mock_model):
-    model = mock_model
-    texts = ["This is a test sentence."]
-    result = generate_embeddings(texts, model)
-    assert isinstance(result, np.ndarray)
-    # Basic check on shape - more detailed assertions would require inspecting the model's output
-    assert result.shape == (1,)
+def test_load_sentence_bert_model_none_model_name():
+     """Test loading a Sentence-BERT model with None as name."""
+     with pytest.raises(TypeError):
+        load_sentence_bert_model(None)
 
-def test_generate_embeddings_multiple_texts(mock_model):
-    model = mock_model
-    texts = ["First sentence.", "Second, longer sentence."]
-    result = generate_embeddings(texts, model)
-    assert isinstance(result, np.ndarray)
-    assert result.shape == (2,)
+def test_load_sentence_bert_model_empty_model_name():
+    """Test loading a Sentence-BERT model with an empty string as name."""
+    with pytest.raises(OSError):
+        load_sentence_bert_model("")
 
-def test_generate_embeddings_with_pretrained_model():
-    try:
-        model = SentenceTransformer('all-MiniLM-L6-v2')
-        texts = ["This is a test sentence.", "Another test sentence."]
-        result = generate_embeddings(texts, model)
-        assert isinstance(result, np.ndarray)
-        assert result.shape == (2, 384)
-    except Exception as e:
-        pytest.skip(f"Pretrained model test skipped: {e}")
-
-def test_generate_embeddings_invalid_input(mock_model):
-    model = mock_model
+def test_load_sentence_bert_model_numerical_model_name():
+    """Test loading a Sentence-BERT model with a numerical name."""
     with pytest.raises(TypeError):
-        generate_embeddings(123, model) # type: ignore
-
+        load_sentence_bert_model(123)
