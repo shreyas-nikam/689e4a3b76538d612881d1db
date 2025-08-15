@@ -1,42 +1,46 @@
 import pytest
-from definition_696f057b80d9406f997cd6eabacbf3c9 import calculate_groundedness
+from definition_1da6e4e226624502b2a2711df2925b7f import calculate_groundedness
 from sentence_transformers import SentenceTransformer
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def model():
     return SentenceTransformer('all-MiniLM-L6-v2')
 
-@pytest.mark.parametrize("answer, context, expected", [
-    ("The company's revenue grew.", "The company reported revenue growth.", 0.9),
-    ("The company made a profit.", "No profit was reported.", 0.0),
-    ("The cat sat on the mat.", "The dog barked loudly.", 0.0),
-])
-def test_calculate_groundedness_positive(model, answer, context, expected):
-    score = calculate_groundedness(answer, context, model)
-    assert score >= 0.0 and score <= 1.0
+def mock_sentence_transformer(sentences):
+    # Mock embedding model - replace with appropriate mocking strategy if needed
+    return [([float(i) for i in range(384)]) for _ in sentences]
 
-@pytest.mark.parametrize("answer, context", [
-    ("", "The context"),
-    ("The answer", ""),
-    ("", ""),
-])
-def test_calculate_groundedness_empty_input(model, answer, context):
-    score = calculate_groundedness(answer, context, model)
-    assert score >= 0.0 and score <= 1.0
+def test_calculate_groundedness_high_groundedness(model, monkeypatch):
+    monkeypatch.setattr("sentence_transformers.SentenceTransformer.encode", mock_sentence_transformer)
+    answer = "The company's revenue grew by 10% in Q3."
+    context = "The company reported a 10% increase in Q3 revenue."
+    groundedness = calculate_groundedness(answer, context, model)
+    assert groundedness > 0.8
 
-def test_calculate_groundedness_same_sentences(model):
-    text = "The company is doing well."
-    score = calculate_groundedness(text, text, model)
-    assert score >= 0.8
+def test_calculate_groundedness_low_groundedness(model, monkeypatch):
+    monkeypatch.setattr("sentence_transformers.SentenceTransformer.encode", mock_sentence_transformer)
+    answer = "The company's revenue grew by 20% in Q3."
+    context = "The company reported a 10% increase in Q3 revenue."
+    groundedness = calculate_groundedness(answer, context, model)
+    assert groundedness < 0.5
 
-def test_calculate_groundedness_long_text(model):
-    answer = "This is a very long answer with many sentences. It should still work." * 3
-    context = "This is a very long context with many sentences. It should also work." * 5
-    score = calculate_groundedness(answer, context, model)
-    assert score >= 0.0 and score <= 1.0
+def test_calculate_groundedness_empty_answer(model, monkeypatch):
+    monkeypatch.setattr("sentence_transformers.SentenceTransformer.encode", mock_sentence_transformer)
+    answer = ""
+    context = "The company reported a 10% increase in Q3 revenue."
+    groundedness = calculate_groundedness(answer, context, model)
+    assert groundedness == 0.0
 
-def test_calculate_groundedness_complex_sentences(model):
-    answer = "The company's revenue increased, which is a positive sign."
-    context = "Revenue increased; this indicates positive growth."
-    score = calculate_groundedness(answer, context, model)
-    assert score >= 0.6
+def test_calculate_groundedness_empty_context(model, monkeypatch):
+    monkeypatch.setattr("sentence_transformers.SentenceTransformer.encode", mock_sentence_transformer)
+    answer = "The company's revenue grew by 10% in Q3."
+    context = ""
+    groundedness = calculate_groundedness(answer, context, model)
+    assert groundedness == 0.0
+
+def test_calculate_groundedness_identical_answer_context(model, monkeypatch):
+    monkeypatch.setattr("sentence_transformers.SentenceTransformer.encode", mock_sentence_transformer)
+    answer = "The company reported a 10% increase in Q3 revenue."
+    context = "The company reported a 10% increase in Q3 revenue."
+    groundedness = calculate_groundedness(answer, context, model)
+    assert groundedness == 1.0
