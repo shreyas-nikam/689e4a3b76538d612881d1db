@@ -1,0 +1,5 @@
+[server]
+port = 8564
+baseUrlPath = "689e4a3b76538d612881d1db"
+enableCORS = false
+enableXsrfProtection = false
