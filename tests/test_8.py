@@ -1,38 +1,12 @@
 import pytest
-from definition_8aeaaf232bde4112beb18a8eb85988e6 import calculate_completeness
-from sentence_transformers import SentenceTransformer
+from definition_5d5c0be45ba249bab1e7620184bc61b3 import calculate_context_relevancy
 
-@pytest.fixture
-def model():
-    return SentenceTransformer('all-MiniLM-L6-v2')
-
-def test_completeness_full_coverage(model):
-    context = "The company's revenue increased. Profits also increased."
-    answer = "Revenue and profits increased for the company."
-    completeness = calculate_completeness(context, answer, model)
-    assert completeness > 0.8
-
-def test_completeness_partial_coverage(model):
-    context = "The company's revenue increased. Profits also increased."
-    answer = "Revenue increased for the company."
-    completeness = calculate_completeness(context, answer, model)
-    assert 0.4 < completeness < 0.8
-
-def test_completeness_no_coverage(model):
-    context = "The company's revenue increased. Profits also increased."
-    answer = "The weather is nice today."
-    completeness = calculate_completeness(context, answer, model)
-    assert completeness < 0.2
-
-def test_completeness_empty_context(model):
-    context = ""
-    answer = "Revenue increased for the company."
-    completeness = calculate_completeness(context, answer, model)
-    assert completeness == 0.0
-
-def test_completeness_empty_answer(model):
-    context = "The company's revenue increased. Profits also increased."
-    answer = ""
-    completeness = calculate_completeness(context, answer, model)
-    assert completeness < 0.2
-
+@pytest.mark.parametrize("query, context, expected", [
+    ("What is the capital of France?", "Paris is the capital of France.", 1.0),
+    ("Meaning of life", "42", 0.0),
+    ("Financial report", "This is a financial document.", 0.0),
+    ("", "Some context.", 0.0),
+    ("Query string", "", 0.0)
+])
+def test_calculate_context_relevancy(query, context, expected):
+    assert calculate_context_relevancy(query, context) == expected
