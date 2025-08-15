@@ -1,76 +1,216 @@
 import pytest
-from definition_17bf36e9377549dfbfde53fa0adfcc69 import calculate_answer_relevancy
-import unittest.mock
-import numpy as np
+from definition_60b98260cd644b61b92d05eb23d8ba51 import calculate_answer_relevancy
 
 @pytest.fixture
 def mock_model():
-    model = unittest.mock.MagicMock()
-    return model
+    class MockModel:
+        def encode(self, sentences):
+            # Simple mock embedding for testing purposes
+            if isinstance(sentences, str):
+                if sentences == "What were the key takeaways from the earnings call regarding future investments?":
+                    return [0.1, 0.2]
+                elif sentences == "The earnings call emphasized strategic investments in AI research and development. The CEO also mentioned expanding into new geographical markets.":
+                    return [0.3, 0.4]
+                else:
+                    return [0.0, 0.0]
+            else:
+                if sentences[0] == "What were the key takeaways from the earnings call regarding future investments?":
+                    return [[0.1, 0.2]]
+                elif sentences[0] == "The earnings call emphasized strategic investments in AI research and development.":
+                    return [[0.3, 0.4]]
+                elif sentences[1] == "The CEO also mentioned expanding into new geographical markets.":
+                    return [[0.5, 0.6]]
+                elif sentences[0] == "Some irrelevant sentence.":
+                    return [[0.0, 0.0]]
+                elif sentences[1] == "Another irrelevant sentence.":
+                    return [[0.0, 0.0]]
+                
+                else:
+                    return [[0.0, 0.0]]
+    return MockModel()
 
-def mock_sentence_splitter(text):
-    return text.split(". ")
 
-def mock_embedding_generator(model, sentences):
-    num_sentences = len(sentences)
-    embedding_size = 3  # Example embedding size
-    return np.random.rand(num_sentences, embedding_size)
-
-def mock_cosine_similarity(embeddings1, embeddings2):
-    # Mock cosine similarity calculation for testing
-    similarity_matrix = np.random.rand(embeddings1.shape[0], embeddings2.shape[0])
-    return similarity_matrix
-
-
-def test_calculate_answer_relevancy_happy_path(mock_model, monkeypatch):
-    monkeypatch.setattr("definition_17bf36e9377549dfbfde53fa0adfcc69.mock_sentence_splitter", mock_sentence_splitter)
-    monkeypatch.setattr("definition_17bf36e9377549dfbfde53fa0adfcc69.mock_embedding_generator", mock_embedding_generator)
-    monkeypatch.setattr("definition_17bf36e9377549dfbfde53fa0adfcc69.mock_cosine_similarity", mock_cosine_similarity)
+def test_calculate_answer_relevancy_high(mock_model):
+    query = "What were the key takeaways from the earnings call regarding future investments?"
+    answer = "The earnings call emphasized strategic investments in AI research and development. The CEO also mentioned expanding into new geographical markets."
     
-    query = "What is the meaning of life?"
-    answer = "The meaning of life is 42."
-    
-    # Mock implementations
-    def mock_sentence_splitter(text):
-        return text.split(".")
+    # Mock implementation
+    def mock_calculate_answer_relevancy(query, answer, model):
+      query_embedding = model.encode(query)
+      answer_embedding = model.encode(answer)
 
-    def mock_embedding_generator(model, sentences):
-        return np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]])
+      
+      
+      query_sentences = [query]
+      answer_sentences = [answer]
 
-    def mock_cosine_similarity(embeddings1, embeddings2):
-         return np.array([[0.9, 0.8], [0.7, 0.6]])
-   
-    monkeypatch.setattr("definition_17bf36e9377549dfbfde53fa0adfcc69.mock_sentence_splitter", mock_sentence_splitter)
-    monkeypatch.setattr("definition_17bf36e9377549dfbfde53fa0adfcc69.mock_embedding_generator", mock_embedding_generator)
-    monkeypatch.setattr("definition_17bf36e9377549dfbfde53fa0adfcc69.mock_cosine_similarity", mock_cosine_similarity)
+      query_embeddings = [model.encode(s) for s in query_sentences]
+      answer_embeddings = [model.encode(s) for s in answer_sentences]
 
-    
-    # Mock the behavior of functions used within calculate_answer_relevancy
-    # Assume the internal logic calculates an average of max similarities.  This ensures a return float.
+      similarities = []
+      for a_emb in answer_embeddings:
+          max_sim = max([cosine_similarity(a_emb, q_emb) for q_emb in query_embeddings])
+          similarities.append(max_sim)
+
+      return sum(similarities) / len(similarities)
+
+    def cosine_similarity(v1, v2):
+        dot_product = sum(x * y for x, y in zip(v1, v2))
+        magnitude_v1 = sum(x ** 2 for x in v1) ** 0.5
+        magnitude_v2 = sum(x ** 2 for x in v2) ** 0.5
+        return dot_product / (magnitude_v1 * magnitude_v2)
+
+    expected_relevancy = mock_calculate_answer_relevancy(query, answer, mock_model)
+
+    # Replace the real function call with the mocked implementation in your test file
+    from definition_60b98260cd644b61b92d05eb23d8ba51 import calculate_answer_relevancy 
     result = calculate_answer_relevancy(query, answer, mock_model)
-    assert isinstance(result, float)
+    assert result == expected_relevancy
 
+def test_calculate_answer_relevancy_low(mock_model):
+    query = "What were the key takeaways from the earnings call regarding future investments?"
+    answer = "Some irrelevant sentence. Another irrelevant sentence."
+    
+    # Mock implementation
+    def mock_calculate_answer_relevancy(query, answer, model):
+      query_embedding = model.encode(query)
+      answer_embedding = model.encode(answer)
+
+      
+      
+      query_sentences = [query]
+      answer_sentences = [answer]
+
+      query_embeddings = [model.encode(s) for s in query_sentences]
+      answer_embeddings = [model.encode(s) for s in answer_sentences]
+
+      similarities = []
+      for a_emb in answer_embeddings:
+          max_sim = max([cosine_similarity(a_emb, q_emb) for q_emb in query_embeddings])
+          similarities.append(max_sim)
+
+      return sum(similarities) / len(similarities)
+
+    def cosine_similarity(v1, v2):
+        dot_product = sum(x * y for x, y in zip(v1, v2))
+        magnitude_v1 = sum(x ** 2 for x in v1) ** 0.5
+        magnitude_v2 = sum(x ** 2 for x in v2) ** 0.5
+        return dot_product / (magnitude_v1 * magnitude_v2)
+
+    expected_relevancy = mock_calculate_answer_relevancy(query, answer, mock_model)
+
+    # Replace the real function call with the mocked implementation in your test file
+    from definition_60b98260cd644b61b92d05eb23d8ba51 import calculate_answer_relevancy 
+    result = calculate_answer_relevancy(query, answer, mock_model)
+    assert result == expected_relevancy
 
 def test_calculate_answer_relevancy_empty_query(mock_model):
     query = ""
-    answer = "The answer is here."
+    answer = "The earnings call emphasized strategic investments in AI research and development. The CEO also mentioned expanding into new geographical markets."
+
+    # Mock implementation
+    def mock_calculate_answer_relevancy(query, answer, model):
+      query_embedding = model.encode(query)
+      answer_embedding = model.encode(answer)
+
+      
+      
+      query_sentences = [query]
+      answer_sentences = [answer]
+
+      query_embeddings = [model.encode(s) for s in query_sentences]
+      answer_embeddings = [model.encode(s) for s in answer_sentences]
+
+      similarities = []
+      for a_emb in answer_embeddings:
+          max_sim = max([cosine_similarity(a_emb, q_emb) for q_emb in query_embeddings])
+          similarities.append(max_sim)
+
+      return sum(similarities) / len(similarities)
+
+    def cosine_similarity(v1, v2):
+        dot_product = sum(x * y for x, y in zip(v1, v2))
+        magnitude_v1 = sum(x ** 2 for x in v1) ** 0.5
+        magnitude_v2 = sum(x ** 2 for x in v2) ** 0.5
+        return dot_product / (magnitude_v1 * magnitude_v2)
+
+    expected_relevancy = mock_calculate_answer_relevancy(query, answer, mock_model)
+
+    # Replace the real function call with the mocked implementation in your test file
+    from definition_60b98260cd644b61b92d05eb23d8ba51 import calculate_answer_relevancy 
     result = calculate_answer_relevancy(query, answer, mock_model)
-    assert result is None
+    assert result == expected_relevancy
 
 def test_calculate_answer_relevancy_empty_answer(mock_model):
-    query = "What is the question?"
+    query = "What were the key takeaways from the earnings call regarding future investments?"
     answer = ""
-    result = calculate_answer_relevancy(query, answer, mock_model)
-    assert result is None
 
-def test_calculate_answer_relevancy_identical_query_answer(mock_model):
-    query = "This is a test."
-    answer = "This is a test."
-    result = calculate_answer_relevancy(query, answer, mock_model)
-    assert result is None
+    # Mock implementation
+    def mock_calculate_answer_relevancy(query, answer, model):
+      query_embedding = model.encode(query)
+      answer_embedding = model.encode(answer)
 
-def test_calculate_answer_relevancy_no_sentences(mock_model):
-    query = ""
-    answer = ""
+      
+      
+      query_sentences = [query]
+      answer_sentences = [answer]
+
+      query_embeddings = [model.encode(s) for s in query_sentences]
+      answer_embeddings = [model.encode(s) for s in answer_sentences]
+
+      similarities = []
+      for a_emb in answer_embeddings:
+          max_sim = max([cosine_similarity(a_emb, q_emb) for q_emb in query_embeddings])
+          similarities.append(max_sim)
+
+      return sum(similarities) / len(similarities)
+
+    def cosine_similarity(v1, v2):
+        dot_product = sum(x * y for x, y in zip(v1, v2))
+        magnitude_v1 = sum(x ** 2 for x in v1) ** 0.5
+        magnitude_v2 = sum(x ** 2 for x in v2) ** 0.5
+        return dot_product / (magnitude_v1 * magnitude_v2)
+
+    expected_relevancy = mock_calculate_answer_relevancy(query, answer, mock_model)
+
+    # Replace the real function call with the mocked implementation in your test file
+    from definition_60b98260cd644b61b92d05eb23d8ba51 import calculate_answer_relevancy 
     result = calculate_answer_relevancy(query, answer, mock_model)
-    assert result is None
+    assert result == expected_relevancy
+
+def test_calculate_answer_relevancy_same_query_answer(mock_model):
+    query = "What were the key takeaways from the earnings call regarding future investments?"
+    answer = "What were the key takeaways from the earnings call regarding future investments?"
+
+    # Mock implementation
+    def mock_calculate_answer_relevancy(query, answer, model):
+      query_embedding = model.encode(query)
+      answer_embedding = model.encode(answer)
+
+      
+      
+      query_sentences = [query]
+      answer_sentences = [answer]
+
+      query_embeddings = [model.encode(s) for s in query_sentences]
+      answer_embeddings = [model.encode(s) for s in answer_sentences]
+
+      similarities = []
+      for a_emb in answer_embeddings:
+          max_sim = max([cosine_similarity(a_emb, q_emb) for q_emb in query_embeddings])
+          similarities.append(max_sim)
+
+      return sum(similarities) / len(similarities)
+
+    def cosine_similarity(v1, v2):
+        dot_product = sum(x * y for x, y in zip(v1, v2))
+        magnitude_v1 = sum(x ** 2 for x in v1) ** 0.5
+        magnitude_v2 = sum(x ** 2 for x in v2) ** 0.5
+        return dot_product / (magnitude_v1 * magnitude_v2)
+
+    expected_relevancy = mock_calculate_answer_relevancy(query, answer, mock_model)
+
+    # Replace the real function call with the mocked implementation in your test file
+    from definition_60b98260cd644b61b92d05eb23d8ba51 import calculate_answer_relevancy 
+    result = calculate_answer_relevancy(query, answer, mock_model)
+    assert result == expected_relevancy
