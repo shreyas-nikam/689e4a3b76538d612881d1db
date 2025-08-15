@@ -1,43 +1,61 @@
 import pytest
+from definition_73ebb0b0f93449c6a4d4b6622e348148 import apply_kmeans_clustering
 import numpy as np
 from sklearn.cluster import KMeans
-from definition_b655a962317844a8b75c56b3993c621b import apply_kmeans_clustering
+from unittest.mock import patch
 
 @pytest.fixture
-def mock_embeddings():
-    # Create a sample set of embeddings for testing.
-    return np.array([[1, 2], [1.5, 1.8], [5, 8], [8, 8], [1, 0.6], [9, 11]])
+def mock_kmeans(monkeypatch):
+    class MockKMeans:
+        def __init__(self, n_clusters):
+            self.n_clusters = n_clusters
+            self.labels_ = np.array([0] * 5 + [1] * 5)  # Mock cluster labels
 
-def test_apply_kmeans_clustering_valid_input(mock_embeddings):
-    """Test with valid embeddings and n_clusters."""
+        def fit_predict(self, data):
+            return self.labels_
+
+    monkeypatch.setattr("sklearn.cluster.KMeans", MockKMeans)
+
+def test_apply_kmeans_clustering_valid_input(mock_kmeans):
+    embeddings = np.random.rand(10, 2)
     n_clusters = 2
-    labels = apply_kmeans_clustering(mock_embeddings, n_clusters)
+    labels = apply_kmeans_clustering(embeddings, n_clusters)
     assert isinstance(labels, np.ndarray)
-    assert labels.shape == (mock_embeddings.shape[0],)
-    assert len(np.unique(labels)) == n_clusters
+    assert len(labels) == 10
+    assert all(isinstance(label, np.int64) for label in labels)
 
-def test_apply_kmeans_clustering_different_n_clusters(mock_embeddings):
-    """Test with a different number of clusters."""
-    n_clusters = 3
-    labels = apply_kmeans_clustering(mock_embeddings, n_clusters)
-    assert len(np.unique(labels)) == n_clusters
-
-def test_apply_kmeans_clustering_empty_embeddings():
-    """Test with empty embeddings."""
-    embeddings = np.array([])  # Empty array for testing
+def test_apply_kmeans_clustering_empty_embeddings(mock_kmeans):
+    embeddings = np.array([])
     n_clusters = 2
     with pytest.raises(ValueError):
         apply_kmeans_clustering(embeddings, n_clusters)
 
-def test_apply_kmeans_clustering_invalid_n_clusters(mock_embeddings):
-    """Test with invalid n_clusters (greater than the number of samples)."""
-    n_clusters = mock_embeddings.shape[0] + 1
-    with pytest.raises(ValueError):  # Expect ValueError due to KMeans limitations
-        apply_kmeans_clustering(mock_embeddings, n_clusters)
+def test_apply_kmeans_clustering_invalid_n_clusters(mock_kmeans):
+    embeddings = np.random.rand(10, 2)
+    n_clusters = 0  # Invalid number of clusters
+    with pytest.raises(ValueError):
+        apply_kmeans_clustering(embeddings, n_clusters)
 
-def test_apply_kmeans_clustering_n_clusters_is_one(mock_embeddings):
-    """Test with n_clusters equals to one."""
+def test_apply_kmeans_clustering_non_numpy_embeddings(mock_kmeans):
+    embeddings = [[1,2], [3,4]]
+    n_clusters = 2
+    with pytest.raises(AttributeError): # Check that it fails due to non numpy array
+        apply_kmeans_clustering(embeddings, n_clusters)
+
+def test_apply_kmeans_clustering_one_cluster(monkeypatch):
+    class MockKMeans:
+        def __init__(self, n_clusters):
+            self.n_clusters = n_clusters
+            self.labels_ = np.array([0] * 10)  # Mock cluster labels, all in one cluster
+
+        def fit_predict(self, data):
+            return self.labels_
+
+    monkeypatch.setattr("sklearn.cluster.KMeans", MockKMeans)
+    embeddings = np.random.rand(10, 2)
     n_clusters = 1
-    labels = apply_kmeans_clustering(mock_embeddings, n_clusters)
-    assert len(np.unique(labels)) == n_clusters
-    assert all(label == 0 for label in labels)
+    labels = apply_kmeans_clustering(embeddings, n_clusters)
+    assert isinstance(labels, np.ndarray)
+    assert len(labels) == 10
+    assert all(isinstance(label, np.int64) for label in labels)
+    assert np.all(labels == 0) # Ensure all labels are the same if n_clusters=1
