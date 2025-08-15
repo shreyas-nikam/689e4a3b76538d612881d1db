@@ -1,31 +1,43 @@
 import pytest
 import pandas as pd
-from definition_6ef9c486d9544144befb7fe2749ec0d3 import compute_text_projection
+from definition_4b022d1bfa2d41fea3a4f924636b758e import load_data_from_duckdb
 
-def test_compute_text_projection_empty_df():
+def create_sample_dataframe():
+    data = {'col1': [1, 2, 3, 4, 5],
+            'col2': ['a', 'b', 'c', 'd', 'e'],
+            'col3': [1.1, 2.2, 3.3, 4.4, 5.5]}
+    return pd.DataFrame(data)
+
+def test_load_data_from_duckdb_no_filter():
+    df = create_sample_dataframe()
+    predicate = None
+    with pytest.raises(TypeError):
+        load_data_from_duckdb(df, predicate)
+
+def test_load_data_from_duckdb_valid_predicate():
+    df = create_sample_dataframe()
+    predicate = "col1 > 2"
+    
+    with pytest.raises(NameError):
+        load_data_from_duckdb(df, predicate)
+
+def test_load_data_from_duckdb_empty_dataframe():
     df = pd.DataFrame()
-    with pytest.raises(Exception):
-        compute_text_projection(df, text="text", x="x", y="y", neighbors="neighbors")
+    predicate = "col1 > 2"
 
-def test_compute_text_projection_missing_column():
-    df = pd.DataFrame({"col1": [1, 2], "col2": ["a", "b"]})
-    with pytest.raises(KeyError):
-        compute_text_projection(df, text="text", x="x", y="y", neighbors="neighbors")
+    with pytest.raises(NameError):
+        load_data_from_duckdb(df, predicate)
 
-def test_compute_text_projection_valid_df():
-    df = pd.DataFrame({"text": ["doc1", "doc2"]})
-    compute_text_projection(df, text="text", x="x", y="y", neighbors="neighbors")
-    assert "x" in df.columns
-    assert "y" in df.columns
-    assert "neighbors" in df.columns
-    assert len(df) == 2
+def test_load_data_from_duckdb_invalid_predicate():
+    df = create_sample_dataframe()
+    predicate = "invalid_column > 2"
 
-def test_compute_text_projection_numeric_text():
-    df = pd.DataFrame({"text": [1, 2]})
-    with pytest.raises(TypeError):
-        compute_text_projection(df, text="text", x="x", y="y", neighbors="neighbors")
+    with pytest.raises(NameError):
+        load_data_from_duckdb(df, predicate)
 
-def test_compute_text_projection_nan_text():
-    df = pd.DataFrame({"text": [float('NaN'), "doc2"]})
-    with pytest.raises(TypeError):
-        compute_text_projection(df, text="text", x="x", y="y", neighbors="neighbors")
+def test_load_data_from_duckdb_predicate_always_false():
+    df = create_sample_dataframe()
+    predicate = "col1 > 100"
+
+    with pytest.raises(NameError):
+        load_data_from_duckdb(df, predicate)
