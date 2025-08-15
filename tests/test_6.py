@@ -1,37 +1,16 @@
 import pytest
-from definition_00ea2e798147445d9663e95d26939f3e import calculate_context_relevancy
-from sentence_transformers import SentenceTransformer
+import numpy as np
+from definition_49ef4ca7fb194e02bded9bfab77c1a00 import compute_cosine_similarity
 
-@pytest.fixture(scope="module")
-def model():
-    return SentenceTransformer('all-MiniLM-L6-v2')
-
-def test_calculate_context_relevancy_valid(model):
-    query = "What is the revenue?"
-    context = "The revenue is $100."
-    relevancy = calculate_context_relevancy(query, context, model)
-    assert 0 <= relevancy <= 1
-
-def test_calculate_context_relevancy_empty_query(model):
-    query = ""
-    context = "The revenue is $100."
-    relevancy = calculate_context_relevancy(query, context, model)
-    assert relevancy == 0.0
-
-def test_calculate_context_relevancy_empty_context(model):
-    query = "What is the revenue?"
-    context = ""
-    relevancy = calculate_context_relevancy(query, context, model)
-    assert relevancy == 0.0
-
-def test_calculate_context_relevancy_no_relevance(model):
-    query = "What is the capital of France?"
-    context = "The revenue is $100."
-    relevancy = calculate_context_relevancy(query, context, model)
-    assert 0 <= relevancy <= 1 # Score should be low but not necessarily 0 due to unrelated embeddings
-
-def test_calculate_context_relevancy_identical(model):
-    query = "The revenue is $100."
-    context = "The revenue is $100."
-    relevancy = calculate_context_relevancy(query, context, model)
-    assert 0 <= relevancy <= 1
+@pytest.mark.parametrize("embedding1, embedding2, expected", [
+    (np.array([1, 0, 0]), np.array([1, 0, 0]), 1.0),  # Identical vectors
+    (np.array([1, 0, 0]), np.array([0, 1, 0]), 0.0),  # Orthogonal vectors
+    (np.array([1, 1, 0]), np.array([1, 0, 0]), 0.70710678),  # Vectors with some similarity
+    (np.array([1, 2, 3]), np.array([4, 5, 6]), 0.97463184),  # General case
+    (np.array([0, 0, 0]), np.array([0, 0, 0]), np.nan),  # Zero vectors, expect NaN
+])
+def test_compute_cosine_similarity(embedding1, embedding2, expected):
+    if np.isnan(expected):
+        assert np.isnan(compute_cosine_similarity(embedding1, embedding2))
+    else:
+        assert np.isclose(compute_cosine_similarity(embedding1, embedding2), expected, rtol=1e-6)
