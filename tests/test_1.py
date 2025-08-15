@@ -1,13 +1,12 @@
 import pytest
-from definition_e26805cadf2341dba889296f637bfcdb import clean_text
+from definition_e591f420d9d7415495e080a9f0478e11 import clean_text
 
-@pytest.mark.parametrize("input, expected", [
+@pytest.mark.parametrize("input_text, expected_output", [
     ("  Hello World!  ", "hello world!"),
-    ("MixedCase Text.", "mixedcase text."),
-    ("No extra   spaces here. ", "no extra spaces here."),
-    ("Punctuation, marks!?", "punctuation, marks!?"),
-    ("", "")
+    ("This is a test.", "this is a test."),
+    ("Mixed Case Text", "mixed case text"),
+    ("Punctuation!@#$%^&*()_+=-`~[]\{}|;\':\",./<>?", "punctuation!@#$%^&*()_+=-`~[]\{}|;\':\",./<>?"),
+    ("Line\nBreaks\rAnd\tTabs", "line\nbreaks\rand\ttabs"),
 ])
-
-def test_clean_text(input, expected):
-    assert clean_text(input) == expected
+def test_clean_text(input_text, expected_output):
+    assert clean_text(input_text) == expected_output
