@@ -52,35 +52,21 @@ The following Python libraries are expected to be used:
 
 ## 3. Notebook Sections (in detail)
 
-The notebook will be structured into 18 main sections, each comprising Markdown explanations and corresponding Code cells for implementation and execution.
+The notebook will be structured into 18 main sections, each comprising Markdown explanations and corresponding Code cells. Sections 6–9 include **atlas-embed** integration notes.
 
 ---
 
 ### Section 1: Introduction to Financial Document Analysis
-
-**Markdown Cell:**
-Explain the challenge of understanding large volumes of financial documents and how this notebook will demonstrate leveraging NLP techniques to address it. Introduce the concept of semantic similarity and its application in financial analysis for tasks like competitive analysis, research, and trend identification.
+*(unchanged)*
 
 ### Section 2: Setup and Library Installation
-
-**Markdown Cell:**
-Detail the necessary Python libraries for this project. Explain their purpose (e.g., `pandas` for data handling, `sentence_transformers` for embeddings, `embedding_atlas` for projection, `pypdf` for PDF reading, `matplotlib`/`seaborn` for visualization).
+Add `embedding_atlas`, `duckdb`, and `streamlit` to installs.
 
 **Code Cell (Implementation):**
 ```python
-# Install necessary libraries
-# Implement pip install commands for all required libraries
-```
-
-**Code Cell (Execution):**
-```python
-# Execute the installation commands
-```
-
-**Markdown Cell:**
-Confirm that all required libraries have been successfully installed and are ready for use.
-
----
+# Example: install (commented in notebook; run in terminal/colab cell as needed)
+# !pip install pandas numpy scikit-learn matplotlib seaborn sentence-transformers pypdf
+# !pip install embedding-atlas duckdb streamlit
 
 ### Section 3: Data Acquisition and Document Loading
 
@@ -157,56 +143,35 @@ Explain that each document is now represented by a high-dimensional vector and r
 
 ---
 
-### Section 6: Dimensionality Reduction for Visualization (UMAP)
+Section 6: Dimensionality Reduction for Visualization (UMAP via Embedding Atlas)
 
-**Markdown Cell:**
-Explain that text embeddings are high-dimensional, making direct visualization challenging. Introduce dimensionality reduction techniques like UMAP (Uniform Manifold Approximation and Projection) which project these high-dimensional vectors into a lower-dimensional space (typically 2D) while preserving the essential semantic relationships and local/global structure. This allows for visual interpretation of document similarity. The formula for cosine similarity, which underpins these semantic relationships, is given by:
-$$ \text{Sim}(\mathbf{A}, \mathbf{B}) = \cos(\theta) = \frac{\mathbf{A} \cdot \mathbf{B}}{||\mathbf{A}|| \cdot ||\mathbf{B}||} $$
-where $\mathbf{A}$ and $\mathbf{B}$ are two embedding vectors, $\mathbf{A} \cdot \mathbf{B}$ is their dot product, and $||\mathbf{A}||$ and $||\mathbf{B}||$ are their Euclidean norms. Cosine similarity ranges from -1 (opposite) to 1 (identical).
+Use compute_text_projection to compute 2D coordinates and neighbor info compatible with Embedding Atlas.
 
-**Code Cell (Implementation):**
+Code Cell (Implementation):
 ```python
-# Import compute_text_projection from embedding_atlas.projection.
-# Define a function to apply dimensionality reduction and get 2D coordinates.
-# This function will use compute_text_projection.
-```
+from embedding_atlas.projection import compute_text_projection
 
-**Code Cell (Execution):**
+# Given a DataFrame `df` with a 'text' column, produce:
+# - 'projection_x', 'projection_y' (2D coordinates)
+# - 'neighbors' (for local structure)
+compute_text_projection(
+    df,
+    text="text",
+    x="projection_x",
+    y="projection_y",
+    neighbors="neighbors"
+)
+```
+Section 7: Embedding Visualization (Interactive with atlas-embed)
+
+Primary visualization must be interactive using embedding_atlas.streamlit.embedding_atlas. In the notebook, demonstrate how to prepare the DataFrame and show a static snapshot if needed, but instruct users to launch the Streamlit app for interactivity.
+
+Code Cell (Guidance):
 ```python
-# Apply the dimensionality reduction function to the DataFrame's 'embeddings' column.
-# Store the projected 2D coordinates in 'projection_x' and 'projection_y' columns.
-# Display the head of the DataFrame with the new projection columns.
+# Prepare `df` with required columns: 'text', 'projection_x', 'projection_y', 'neighbors'
+# Save df to a file (e.g., parquet/csv) that the Streamlit app can load.
+# Static preview (optional) can be a matplotlib scatter using the projection columns.
 ```
-
-**Markdown Cell:**
-Explain that `projection_x` and `projection_y` now represent the 2D coordinates for each document, ready for plotting.
-
----
-
-### Section 7: Embedding Visualization
-
-**Markdown Cell:**
-Describe the purpose of visualizing the 2D embeddings: to visually inspect how documents are semantically related. Documents that are semantically similar should appear closer to each other on the plot.
-
-**Code Cell (Implementation):**
-```python
-# Import matplotlib.pyplot and seaborn.
-# Define a function to create a scatter plot of the projected embeddings.
-# The plot should use 'projection_x' and 'projection_y'.
-# Add labels for axes and a title.
-# (Optional: Add basic annotations for a few document titles/indices to demonstrate identity)
-```
-
-**Code Cell (Execution):**
-```python
-# Execute the plotting function using the DataFrame.
-# Display the plot.
-```
-
-**Markdown Cell:**
-Interpret the initial visualization, pointing out visible clusters or relationships and setting the stage for formal clustering.
-
----
 
 ### Section 8: Clustering Document Embeddings
 
@@ -235,29 +200,7 @@ Explain what the `cluster_id` column represents and how these clusters will be v
 ---
 
 ### Section 9: Visualizing Clustered Documents
-
-**Markdown Cell:**
-Explain how coloring the embedding plot by cluster ID can reveal the natural groupings of semantically related documents. Each cluster represents a distinct topic or theme within the financial document corpus.
-
-**Code Cell (Implementation):**
-```python
-# Import matplotlib.pyplot and seaborn.
-# Define a function to create a scatter plot of the projected embeddings,
-# with points colored by 'cluster_id'.
-# Use a distinct colormap for clusters.
-# Add a legend for cluster IDs.
-# Add labels for axes and a title.
-```
-
-**Code Cell (Execution):**
-```python
-# Execute the plotting function with cluster IDs.
-# Display the plot.
-```
-
-**Markdown Cell:**
-Analyze the clustered visualization. Discuss how documents within the same cluster likely cover similar financial topics or themes, and how distant clusters represent distinct content areas.
-
+Interactive Requirement: Use Embedding Atlas as the main interface. Provide instructions to pass df with cluster_id as an additional column (for table filtering and tooltips). If a colored scatter by cluster is desired as a static artifact, produce a matplotlib figure, but note that interactivity should be done in Embedding Atlas.
 ---
 
 ### Section 10: Semantic Similarity Search: Concept
@@ -476,3 +419,49 @@ Briefly discuss that the presented functionality metrics (Context Relevancy, Gro
 Summarize the key achievements of this notebook: demonstrating how text embeddings, dimensionality reduction, clustering, and semantic similarity calculations can be used to analyze financial documents. Reiterate the learning outcomes achieved and emphasize the value of such tools for financial professionals in understanding large document corpuses. Briefly touch upon potential future work, such as integrating these analyses into a full RAG system pipeline, exploring different embedding models, or incorporating advanced validation metrics.
 
 ---
+
+
+Additional Code for help:
+
+```code given
+The Python package also provides a Streamlit component to use Embedding Atlas in your Streamlit apps.
+
+Installation
+
+pip install embedding-atlas
+Usage
+
+from embedding_atlas.streamlit import embedding_atlas
+from embedding_atlas.projection import compute_text_projection
+
+# Compute text embedding and projection of the embedding
+compute_text_projection(df, text="description",
+    x="projection_x", y="projection_y", neighbors="neighbors"
+)
+
+# Create an Embedding Atlas component for a given data frame
+value = embedding_atlas(
+    df, text="description",
+    x="projection_x", y="projection_y", neighbors="neighbors",
+    show_table=True
+)
+The returned value is a dict with a predicate string. The predicate is a SQL expression for the current selection in the component. You may use DuckDB to query the data frame with the predicate:
+
+
+import duckdb
+
+predicate = value.get("predicate")
+if predicate is not None:
+    # Query the data frame with the SQL predicate
+    selection = duckdb.query_df(
+        df, "dataframe", "SELECT * FROM dataframe WHERE " + predicate
+    )
+    # Show the selection
+    st.dataframe(selection)
+Note that it's also possible to use the component without projection:
+
+
+value = embedding_atlas(df)
+Without x and y the widget will fall back to a table and charts only mode.
+
+```
