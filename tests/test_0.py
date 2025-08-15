@@ -1,24 +1,47 @@
 import pytest
-from definition_e24f7fb6ff934fedb378cd3270fdb536 import extract_text_from_pdf
+from definition_24aa101e31864d2692266ef7ba4aa0a2 import extract_text_from_pdf
+import os
 
-@pytest.mark.parametrize("file_path, expected_result", [
-    ("non_existent_file.pdf", ""),
-    ("empty_file.pdf", ""),
-    ("test.pdf", "Extracted text from PDF file.")
-])
-def test_extract_text_from_pdf(file_path, expected_result, monkeypatch):
-    def mock_extract_text(path):
-        if path == "test.pdf":
-            return "Extracted text from PDF file."
-        elif path == "empty_file.pdf":
-            return ""
-        else:
-            raise FileNotFoundError
+@pytest.fixture
+def dummy_pdf_file(tmp_path):
+    # Create a dummy PDF file for testing
+    pdf_path = tmp_path / "dummy.pdf"
+    with open(pdf_path, "w") as f:
+        f.write("Dummy PDF content for testing.")
+    return str(pdf_path)
 
-    monkeypatch.setattr("pypdf.PdfReader", lambda x: mock_extract_text(x))
+def test_extract_text_from_pdf_file_not_found():
+    with pytest.raises(FileNotFoundError):
+        extract_text_from_pdf("nonexistent_file.pdf")
+
+def test_extract_text_from_pdf_empty_file(tmp_path):
+    empty_pdf_path = tmp_path / "empty.pdf"
+    with open(empty_pdf_path, "w") as f:
+        pass  # Create an empty file
+    
+    result = extract_text_from_pdf(str(empty_pdf_path))
+    assert result == ""
+
+def test_extract_text_from_pdf_basic(dummy_pdf_file):
+    # Assuming pypdf is used and handles basic text extraction
+
+    with open(dummy_pdf_file, 'r') as f:
+      expected_text = "Dummy PDF content for testing."
 
     try:
-        assert extract_text_from_pdf(file_path) == expected_result
-    except FileNotFoundError:
-        assert file_path == "non_existent_file.pdf"
+      result = extract_text_from_pdf(dummy_pdf_file)
+      assert isinstance(result, str)
+    except Exception as e:
+        pytest.fail(f"PDF extraction failed: {e}")
+        
 
+def test_extract_text_from_pdf_invalid_file_type(tmp_path):
+    txt_file = tmp_path / "dummy.txt"
+    with open(txt_file, "w") as f:
+        f.write("This is a text file.")
+    with pytest.raises(Exception): # Assuming pypdf raises an exception for non pdf files
+        extract_text_from_pdf(str(txt_file))
+
+def test_extract_text_from_pdf_none_path():
+    with pytest.raises(TypeError):
+        extract_text_from_pdf(None)
