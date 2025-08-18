@@ -2,11 +2,9 @@ import streamlit as st
 import pandas as pd
 from pypdf import PdfReader
 import re
-from sentence_transformers import SentenceTransformer
 from embedding_atlas.streamlit import embedding_atlas
 from embedding_atlas.projection import compute_text_projection
 
-import duckdb
 from pathlib import Path
 
 # -------- Settings --------
@@ -82,10 +80,7 @@ def load_sample_csv(sample_path: Path) -> pd.DataFrame:
     df = df[df['text'].str.len() >= 10].reset_index(drop=True)
     return df
 
-def load_sentence_bert_model(model_name="all-MiniLM-L6-v2"):
-    """Loads a Sentence-BERT model."""
-    model = SentenceTransformer(model_name)
-    return model
+
 
 def _compute_text_projection(df, text, x, y, neighbors):
     """Computes a 2D projection of text embeddings for visualization."""
@@ -94,12 +89,12 @@ def _compute_text_projection(df, text, x, y, neighbors):
 # ---------- UI: Document Processing ----------
 def run_document_processing():
     st.header("Document Processing")
-    st.markdown("Upload financial PDFs **or** click **Load sample data** to use a pre-saved CSV.")
+    st.markdown("Upload financial PDFs **or** click **Load sample file** to use a sample file.")
 
     # Data source choice
     source = st.radio(
         "Choose data source:",
-        ["Upload PDFs", "Load sample dataset (CSV)"],
+        ["Upload PDFs", "Load sample File"],
         horizontal=True
     )
 
@@ -130,13 +125,13 @@ def run_document_processing():
         # Load sample dataset via button
         cols = st.columns([1, 2])
         with cols[0]:
-            if st.button("📥 Load sample data"):
+            if st.button("Load a sample file"):
                 try:
                     df_sample = load_sample_csv(SAMPLE_CSV_PATH)
                     st.session_state['processed_df'] = df_sample
                     st.success(f"Loaded sample dataset from: {SAMPLE_CSV_PATH}")
                 except Exception as e:
-                    st.error(f"Failed to load sample dataset: {e}")
+                    st.error(f"Failed to load sample file: {e}")
 
         # Preview if already loaded
         if 'processed_df' in st.session_state:
